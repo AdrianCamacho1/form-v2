@@ -1,105 +1,129 @@
-// src/components/ContactUsForm.jsx
 import React, { useState } from 'react';
 
 const ContactUsForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    description: '',
+    description: ''
   });
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState('');
+  
+  const [formStatus, setFormStatus] = useState({
+    isSubmitting: false,
+    isSuccess: false,
+    error: null
+  });
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Basic validation: Ensure all fields are filled
-    if (!formData.name || !formData.email || !formData.description) {
-      setError('All fields are required.');
-      return;
-    }
-
-    setError(''); // Clear previous errors
-    setStatus('Submitting...');
+    setFormStatus({ isSubmitting: true, isSuccess: false, error: null });
     
-    const apiUrl = 'https://vr0ffp01el.execute-api.us-east-2.amazonaws.com/dev'; // Replace with your API Gateway endpoint
-
     try {
-      // Send the form data to the API Gateway
-      const response = await fetch(apiUrl, {
+      console.log('Sending data to API:', formData);
+      
+      const response = await fetch('https://vr0ffp01el.execute-api.us-east-2.amazonaws.com/dev/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
       });
-
-      if (response.ok) {
-        setStatus('Message sent successfully!');
+      
+      const responseData = await response.json();
+      console.log('Response from API:', responseData);
+      
+      // Check the statusCode in the response
+      if (responseData.statusCode === 200) {
+        console.log('Form submitted successfully');
+        setFormStatus({ isSubmitting: false, isSuccess: true, error: null });
+        
+        // Reset the form on success
         setFormData({ name: '', email: '', description: '' });
       } else {
-        throw new Error('Message submission failed.');
+        const errorMessage = responseData.body 
+          ? JSON.parse(responseData.body).message 
+          : 'Unknown error occurred';
+          
+        console.error('API returned error:', errorMessage);
+        setFormStatus({ isSubmitting: false, isSuccess: false, error: errorMessage });
       }
     } catch (error) {
-      setStatus('');
-      setError('Error submitting the form. Please try again.');
-      console.error(error);
+      console.error('Error submitting form:', error);
+      setFormStatus({ 
+        isSubmitting: false, 
+        isSuccess: false, 
+        error: 'Network error. Please try again.' 
+      });
     }
   };
 
   return (
-    <div className="contact-us-form">
+    <div className="contact-form">
       <h2>Contact Us</h2>
+      
+      {formStatus.isSuccess && (
+        <div className="success-message">
+          Thank you! Your message has been sent successfully.
+        </div>
+      )}
+      
+      {formStatus.error && (
+        <div className="error-message">
+          Error: {formStatus.error}
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="name">Name:</label>
+          <label htmlFor="name">Name</label>
           <input
             type="text"
             id="name"
             name="name"
             value={formData.name}
-            onChange={handleInputChange}
+            onChange={handleChange}
             required
-            placeholder="Your Name"
           />
         </div>
-
+        
         <div className="form-group">
-          <label htmlFor="email">Email:</label>
+          <label htmlFor="email">Email</label>
           <input
             type="email"
             id="email"
             name="email"
             value={formData.email}
-            onChange={handleInputChange}
+            onChange={handleChange}
             required
-            placeholder="Your Email"
           />
         </div>
-
+        
         <div className="form-group">
-          <label htmlFor="description">Description:</label>
+          <label htmlFor="description">Message</label>
           <textarea
             id="description"
             name="description"
             value={formData.description}
-            onChange={handleInputChange}
+            onChange={handleChange}
             required
-            placeholder="Your message here..."
+            rows="5"
           />
         </div>
-
-        <div className="form-actions">
-          <button type="submit">Submit</button>
-        </div>
-
-        {error && <p className="error">{error}</p>}
-        {status && <p className="status">{status}</p>}
+        
+        <button 
+          type="submit"
+          disabled={formStatus.isSubmitting}
+          className="submit-button"
+        >
+          {formStatus.isSubmitting ? 'Sending...' : 'Send Message'}
+        </button>
       </form>
     </div>
   );
